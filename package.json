@@ -1,0 +1,21 @@
+{
+  "name": "alerta-urbana-app",
+  "version": "1.0.0",
+  "description": "Aplicación móvil híbrida de Reporte Ciudadano Georreferenciado con detección de proximidad, antiduplicados y captura de foto/video (Capacitor 8)",
+  "main": "www/js/app.js",
+  "scripts": {
+    "sync": "npx cap sync android",
+    "copy": "npx cap copy android",
+    "open:android": "npx cap open android",
+    "serve": "npx --yes serve www -l 3000"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/camera": "^8.2.6",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/geolocation": "^8.2.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2"
+  }
+}

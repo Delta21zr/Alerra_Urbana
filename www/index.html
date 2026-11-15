@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#18181b" />
+  <title>AlertaUrbana</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body class="bg-zinc-100 text-zinc-900 min-h-screen select-none">
+
+  <!-- PANEL INSTRUMENTAL: GPS, coordenadas y estado de red -->
+  <header class="bg-zinc-900 text-white px-5 pt-5 pb-5 sticky top-0 z-30">
+    <div class="max-w-lg mx-auto">
+      <div class="flex items-center justify-between">
+        <div class="flex items-baseline gap-2">
+          <h1 class="text-sm font-semibold tracking-tight">AlertaUrbana</h1>
+          <span id="platform-badge" class="text-[10px] uppercase tracking-wider text-zinc-400">Web</span>
+        </div>
+        <button id="btn-toggle-offline" type="button" class="flex items-center gap-1.5 text-xs text-zinc-300" title="Alternar modo offline simulado">
+          <span id="net-dot" class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+          <span id="net-label">En línea</span>
+          <span id="sync-queue-badge" class="hidden mono text-[10px] px-1.5 bg-amber-400 text-zinc-900 rounded-sm">0</span>
+        </button>
+      </div>
+
+      <div class="flex items-center justify-between mt-4 text-xs">
+        <div class="flex items-center gap-2">
+          <span id="gps-status-dot" class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>
+          <span id="gps-status-text" class="text-zinc-300">GPS en espera</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span id="perm-loc-pill" class="text-[10px] text-zinc-400">GPS: verificando</span>
+          <span id="perm-cam-pill" class="text-[10px] text-zinc-400">Cámara: lista</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 mt-3 mono">
+        <div>
+          <p class="text-[10px] uppercase tracking-wider text-zinc-500">Lat</p>
+          <p id="coord-lat" class="text-base">-</p>
+        </div>
+        <div>
+          <p class="text-[10px] uppercase tracking-wider text-zinc-500">Lng</p>
+          <p id="coord-lng" class="text-base">-</p>
+        </div>
+        <div>
+          <p class="text-[10px] uppercase tracking-wider text-zinc-500">Prec.</p>
+          <p id="coord-acc" class="text-base text-blue-400">-</p>
+        </div>
+      </div>
+
+      <p id="gps-quality-badge" class="text-[11px] text-zinc-500 mt-2">Pulsa Actualizar para fijar coordenadas reales</p>
+
+      <div class="flex items-center gap-5 mt-3 text-xs text-zinc-200">
+        <button id="btn-get-location" type="button" class="font-semibold text-white underline underline-offset-4">Actualizar</button>
+        <button id="btn-toggle-watch" type="button" class="text-zinc-300 hover:text-white"><span id="watch-label">Radar continuo</span></button>
+        <button id="btn-toggle-map" type="button" class="text-zinc-300 hover:text-white">Mapa</button>
+        <button id="btn-copy-coords" type="button" class="hidden text-zinc-300 hover:text-white">Copiar</button>
+        <a id="link-external-map" href="#" target="_blank" rel="noopener noreferrer" class="hidden text-zinc-300 hover:text-white">Abrir mapa</a>
+      </div>
+
+      <div id="map-preview-container" class="hidden mt-3 rounded overflow-hidden border border-zinc-700">
+        <div class="flex items-center justify-between px-3 py-1.5 bg-zinc-800 text-[11px] text-zinc-300">
+          <span>Posición actual (OpenStreetMap)</span>
+          <button id="btn-close-map" type="button" class="text-zinc-400 hover:text-white">Cerrar</button>
+        </div>
+        <iframe id="osm-iframe" title="Mapa de ubicación actual" class="w-full h-44 border-0" loading="lazy"></iframe>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-lg mx-auto px-4 py-4 pb-28 space-y-3">
+
+    <!-- ERRORES Y PERMISOS -->
+    <section id="error-alert-panel" class="hidden bg-red-50 border border-red-200 rounded p-4">
+      <div class="flex items-start justify-between gap-2">
+        <h2 id="error-title" class="text-sm font-semibold text-red-900">Error</h2>
+        <button id="btn-dismiss-error" type="button" class="text-xs text-red-700">Cerrar</button>
+      </div>
+      <p id="error-message" class="text-xs text-red-900/90 mt-1 leading-relaxed"></p>
+      <p id="error-suggestion" class="text-xs text-zinc-700 mt-2 bg-white rounded p-2"></p>
+      <div class="flex flex-wrap items-center gap-2 mt-3">
+        <button id="btn-error-retry" type="button" class="px-3 py-1.5 rounded bg-red-600 text-white text-xs font-medium">Reintentar</button>
+        <button id="btn-error-settings" type="button" class="px-3 py-1.5 rounded bg-white border border-zinc-300 text-xs font-medium">Cómo habilitar en Ajustes</button>
+      </div>
+    </section>
+
+    <!-- TAB: REPORTAR -->
+    <section id="tab-reportar" class="tab-panel space-y-3">
+
+      <div class="bg-white rounded p-4">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="step-num">1</span>
+          <h2 class="text-sm font-semibold">Categoría</h2>
+        </div>
+        <p class="text-[11px] text-zinc-500 mb-3">Se valida un radio de <span id="lbl-active-radius" class="font-semibold text-zinc-700">35 m</span> para detectar duplicados.</p>
+
+        <div id="category-grid" class="grid grid-cols-2 gap-2"></div>
+
+        <div id="duplicate-detector-box" class="mt-3 rounded p-3 bg-zinc-50 border-l-2 border-zinc-300">
+          <p id="dup-title" class="text-xs font-semibold text-zinc-800">Validación geográfica pendiente</p>
+          <p id="dup-desc" class="text-[11px] text-zinc-500 mt-0.5">Obtén tu ubicación para verificar reportes cercanos.</p>
+          <div id="dup-matches-list" class="hidden mt-2 space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded p-4">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="step-num">2</span>
+          <h2 class="text-sm font-semibold">Evidencia</h2>
+        </div>
+        <p class="text-[11px] text-zinc-500 mb-3">La foto incluye sello de coordenadas y hora.</p>
+        <div class="grid grid-cols-3 gap-2 text-sm">
+          <button id="btn-capture-photo" type="button" class="py-3 rounded bg-zinc-100 hover:bg-zinc-200 font-medium">Foto</button>
+          <button id="btn-capture-video" type="button" class="py-3 rounded bg-zinc-100 hover:bg-zinc-200 font-medium">Video</button>
+          <button id="btn-pick-gallery" type="button" class="py-3 rounded bg-zinc-100 hover:bg-zinc-200 font-medium">Galería</button>
+        </div>
+
+        <div id="media-preview-box" class="hidden mt-3 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span id="media-meta-badge" class="font-medium text-zinc-700">Evidencia adjunta</span>
+            <button id="btn-remove-media" type="button" class="text-red-600 font-medium">Quitar</button>
+          </div>
+          <img id="photo-preview-el" alt="Vista previa de evidencia" class="hidden w-full max-h-60 object-cover rounded" />
+          <video id="video-preview-el" controls playsinline class="hidden w-full max-h-60 rounded bg-black"></video>
+          <p id="media-gps-stamp" class="text-[11px] text-zinc-500 mono"></p>
+        </div>
+      </div>
+
+      <form id="form-new-report" class="bg-white rounded p-4 space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="step-num">3</span>
+          <h2 class="text-sm font-semibold">Detalles</h2>
+        </div>
+
+        <div>
+          <label for="input-title" class="block text-[11px] text-zinc-500 mb-1">Título</label>
+          <input id="input-title" type="text" required maxlength="90" placeholder="Ej. Bache frente al paso peatonal"
+            class="w-full bg-zinc-100 rounded px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:ring-1 focus:ring-blue-600" />
+        </div>
+        <div>
+          <label for="input-description" class="block text-[11px] text-zinc-500 mb-1">Descripción</label>
+          <textarea id="input-description" rows="2" required maxlength="300" placeholder="Describe el daño o riesgo observado"
+            class="w-full bg-zinc-100 rounded px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:ring-1 focus:ring-blue-600"></textarea>
+        </div>
+        <div>
+          <label for="input-reference" class="block text-[11px] text-zinc-500 mb-1">Referencia (opcional)</label>
+          <input id="input-reference" type="text" maxlength="100" placeholder="Entre calles, poste, fachada"
+            class="w-full bg-zinc-100 rounded px-3 py-2 text-sm placeholder-zinc-400 outline-none focus:ring-1 focus:ring-blue-600" />
+        </div>
+
+        <label id="dup-override-wrapper" class="hidden flex items-start gap-2 p-2.5 rounded bg-amber-50 text-xs text-amber-900 cursor-pointer">
+          <input id="chk-duplicate-override" type="checkbox" class="mt-0.5 accent-blue-600" />
+          <span>Confirmo que es un punto distinto al reporte detectado a menos de <strong id="lbl-override-radius">35</strong> m.</span>
+        </label>
+
+        <button id="btn-submit-report" type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded">
+          Registrar reporte
+        </button>
+      </form>
+    </section>
+
+    <!-- TAB: CERCANOS -->
+    <section id="tab-cercanos" class="tab-panel hidden space-y-3">
+      <div class="bg-white rounded p-4 space-y-3">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-semibold">Reportes por distancia</h2>
+            <p class="text-[11px] text-zinc-500">Calculado con Haversine desde tu GPS.</p>
+          </div>
+          <button id="btn-seed-around-me" type="button" class="text-xs font-medium text-blue-700 text-right">Generar 3 de prueba</button>
+        </div>
+        <div class="flex items-center justify-between pt-3 border-t border-zinc-100 text-xs">
+          <span class="text-zinc-600">Radio antiduplicados</span>
+          <div class="flex items-center gap-1" id="radius-selector-group">
+            <button type="button" data-radius="20" class="radius-btn">20 m</button>
+            <button type="button" data-radius="35" class="radius-btn">35 m</button>
+            <button type="button" data-radius="50" class="radius-btn">50 m</button>
+            <button type="button" data-radius="100" class="radius-btn">100 m</button>
+          </div>
+        </div>
+      </div>
+      <div id="nearby-reports-list" class="bg-white rounded divide-y divide-zinc-100"></div>
+    </section>
+
+    <!-- TAB: SISTEMA -->
+    <section id="tab-sistema" class="tab-panel hidden space-y-3">
+      <div class="bg-white rounded p-4 space-y-3">
+        <h2 class="text-sm font-semibold">Permisos</h2>
+        <div class="flex items-center justify-between py-2 border-t border-zinc-100">
+          <div>
+            <p class="text-xs font-medium">Ubicación</p>
+            <p class="text-[11px] text-zinc-500">Estado: <span id="sys-loc-perm-badge" class="mono">prompt</span></p>
+          </div>
+          <button id="btn-req-loc-perm" type="button" class="px-3 py-1.5 rounded bg-zinc-100 hover:bg-zinc-200 text-xs font-medium">Solicitar</button>
+        </div>
+        <div class="flex items-center justify-between py-2 border-t border-zinc-100">
+          <div>
+            <p class="text-xs font-medium">Cámara</p>
+            <p class="text-[11px] text-zinc-500">Estado: <span id="sys-cam-perm-badge" class="mono">prompt</span></p>
+          </div>
+          <button id="btn-req-cam-perm" type="button" class="px-3 py-1.5 rounded bg-zinc-100 hover:bg-zinc-200 text-xs font-medium">Solicitar</button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded p-4 space-y-3">
+        <h2 class="text-sm font-semibold">Probar escenarios de error</h2>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <button type="button" data-sim-error="PERMISSION_DENIED" class="sim-error-btn py-2 rounded bg-zinc-100 hover:bg-zinc-200">Permiso denegado</button>
+          <button type="button" data-sim-error="PERMISSION_DENIED_PERMANENTLY" class="sim-error-btn py-2 rounded bg-zinc-100 hover:bg-zinc-200">Denegado permanente</button>
+          <button type="button" data-sim-error="LOCATION_DISABLED" class="sim-error-btn py-2 rounded bg-zinc-100 hover:bg-zinc-200">GPS desactivado</button>
+          <button type="button" data-sim-error="TIMEOUT" class="sim-error-btn py-2 rounded bg-zinc-100 hover:bg-zinc-200">Timeout</button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold">Sincronización</h2>
+          <span id="sys-pending-count" class="text-xs mono text-zinc-500">0 pendientes</span>
+        </div>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <button id="btn-sync-now" type="button" class="px-3 py-2 rounded bg-blue-600 text-white font-medium">Sincronizar ahora</button>
+          <button id="btn-toggle-offline-sys" type="button" class="px-3 py-2 rounded bg-zinc-100 hover:bg-zinc-200 font-medium">Alternar modo offline</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL AJUSTES -->
+  <div id="modal-settings-help" class="hidden fixed inset-0 z-50 bg-zinc-900/60 flex items-center justify-center p-4">
+    <div class="bg-white rounded max-w-sm w-full p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-semibold">Habilitar permisos o GPS en Android</h3>
+        <button id="btn-close-settings-modal" type="button" class="text-xs text-zinc-500">Cerrar</button>
+      </div>
+      <ol class="text-xs text-zinc-700 space-y-2 list-decimal list-inside leading-relaxed">
+        <li>Abre los <strong>Ajustes</strong> del teléfono.</li>
+        <li>Ve a <strong>Aplicaciones</strong> &gt; <strong>AlertaUrbana</strong> &gt; <strong>Permisos</strong>.</li>
+        <li>En <strong>Ubicación</strong> elige "Permitir solo mientras la app está en uso" y activa ubicación precisa.</li>
+        <li>Permite también el acceso a <strong>Cámara</strong>.</li>
+        <li>Verifica que la <strong>Ubicación (GPS)</strong> esté encendida en la barra rápida.</li>
+      </ol>
+      <button id="btn-recheck-after-settings" type="button" class="w-full py-2.5 rounded bg-blue-600 text-white text-xs font-medium">Ya lo activé, reintentar</button>
+    </div>
+  </div>
+
+  <div id="toast-container" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 pointer-events-none flex flex-col items-center gap-2 w-11/12 max-w-sm"></div>
+
+  <nav class="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-zinc-200">
+    <div class="max-w-lg mx-auto grid grid-cols-3 text-center text-sm">
+      <button type="button" data-tab="reportar" class="nav-tab-btn py-4">Reportar</button>
+      <button type="button" data-tab="cercanos" class="nav-tab-btn py-4">Cercanos <span id="nav-nearby-count" class="mono text-[11px] text-zinc-400">0</span></button>
+      <button type="button" data-tab="sistema" class="nav-tab-btn py-4">Sistema</button>
+    </div>
+  </nav>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
