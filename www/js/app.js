@@ -10,7 +10,7 @@ import { MediaCaptureService } from './media-capture.js';
 import { ProximityEngine, INCIDENT_CATEGORIES } from './proximity-engine.js';
 import { SyncManager } from './sync-manager.js';
 
-class AlertaUrbanaApp {
+export class AlertaUrbanaApp {
   constructor() {
     this.geoService = new GeolocationService();
     this.mediaService = new MediaCaptureService();
@@ -923,7 +923,7 @@ class AlertaUrbanaApp {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+if (!globalThis.__ALERTA_NO_AUTOSTART__) document.addEventListener('DOMContentLoaded', () => {
   const app = new AlertaUrbanaApp();
   app.init();
 });

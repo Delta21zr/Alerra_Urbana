@@ -37,7 +37,10 @@ export class GeolocationService {
       if (this.isNativePluginAvailable()) {
         const status = await window.Capacitor.Plugins.Geolocation.checkPermissions();
         const locState = status.location || status.coarseLocation || 'prompt';
-        this.permissionState = locState;
+        // Android sigue reportando "denied" aunque el bloqueo sea permanente: no degradar ese estado.
+        if (!(this.permissionState === 'denied_permanently' && locState === 'denied')) {
+          this.permissionState = locState;
+        }
         return {
           location: status.location || locState,
           coarseLocation: status.coarseLocation || locState,
@@ -98,9 +101,9 @@ export class GeolocationService {
           return { granted: true, state: 'granted', precise: result.location === 'granted' };
         }
 
-        this.denialCount += 1;
+        // classifyError suma el rechazo actual; aquí solo se evalúan rechazos previos.
         // Si ya estaba en denied y la respuesta de Android fue inmediata (<250ms), el sistema bloqueó el diálogo ("No volver a preguntar")
-        const isPermanent = (beforeCheck.location === 'denied' && elapsedMs < 250) || this.denialCount >= 2;
+        const isPermanent = (beforeCheck.location === 'denied' && elapsedMs < 250) || this.denialCount >= 1;
         this.permissionState = isPermanent ? 'denied_permanently' : 'denied';
         const classified = this.classifyError({
           code: isPermanent ? 'PERMISSION_DENIED_PERMANENTLY' : 1,
@@ -186,7 +189,7 @@ export class GeolocationService {
             allowBalancedFallback: false
           });
         } catch (fallbackErr) {
-          const classified = this.classifyError(fallbackErr);
+          const classified = fallbackErr?.errorType ? fallbackErr : this.classifyError(fallbackErr);
           this.gpsStatus = 'error';
           this.lastError = classified;
           throw classified;
